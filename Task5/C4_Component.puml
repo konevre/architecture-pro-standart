@@ -1,0 +1,39 @@
+@startuml C4_Credit_Components
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+Container_Boundary(CAS, "Credit Application Service") {
+
+  Component(WebAPI, "Credit API", "REST API", "Приём кредитных заявок")
+  Component(ScoringClient, "Scoring Client", "Module", "Вызов скоринга")
+  Component(ConveyorClient, "CreditConveyor Client", "Module", "Интеграция с Camunda")
+  Component(SMSClient, "SMS Client", "Module", "Уведомления")
+  Component(CreditDB, "Credit Metadata DB", "SQL", "Хранение статусов/метаданных")
+}
+
+Container_Boundary(PAOS, "Pre-approved Offers Service") {
+  Component(OffersCalc, "Offers Calculator", "Service", "Логика расчёта предложений")
+  Component(OffersDB, "Offers DB", "SQL", "Хранение предодобренных предложений")
+  Component(OffersAPI, "Offers API", "REST", "Выдача предложений ИБ")
+}
+
+Container(CreditConveyor, "Кредитный конвейер", "Camunda")
+Container(ScoringSystem, "Скоринг", "Python/Flask")
+Container(BKI, "БКИ", "API")
+Container(SMSGateway, "SMS Gateway", "Integration")
+
+Rel(WebAPI, ScoringClient, "Вызов скоринга")
+Rel(ScoringClient, ScoringSystem, "HTTP")
+Rel(ScoringSystem, BKI, "HTTP")
+
+Rel(WebAPI, ConveyorClient, "Создать заявку")
+Rel(ConveyorClient, CreditConveyor, "REST/JSON")
+
+Rel(WebAPI, SMSClient, "Уведомить клиента")
+Rel(SMSClient, SMSGateway, "SMS")
+
+Rel(OffersAPI, OffersDB, "SQL")
+Rel(OffersCalc, OffersDB, "SQL")
+Rel(WebAPI, OffersCalc, "Запрос рекомендации")
+Rel(WebAPI, CreditDB, "SQL")
+
+@enduml

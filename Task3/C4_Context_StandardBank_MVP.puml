@@ -1,0 +1,65 @@
+@startuml C4_Context_StandardBank_MVP
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+title Контекстная диаграмма C4: MVP депозитов и кредитов в банке «Стандарт»
+
+' === Акторы ===
+Person(ExistingCustomer, "Клиент интернет-банка", "Действующий клиент банка, имеет доступ в ИБ")
+Person(NewCustomer, "Новый клиент", "Потенциальный клиент без учётной записи в ИБ")
+Person(BranchEmployee, "Сотрудник отделения", "Фронт-офис, работает с клиентами в отделении")
+Person(CallCenterOperator, "Оператор кол-центра", "Обрабатывает заявки с сайта")
+Person(BackOfficeDeposits, "Бэк-офис депозитов", "Обрабатывает депозитные заявки, подтверждает ставки")
+Person(BackOfficeCredits, "Бэк-офис кредитов", "Обрабатывает кредитные заявки в конвейере")
+
+' === Системы банка ===
+System_Boundary(Bank, "Банк «Стандарт»") {
+
+  System(Website, "Сайт банка", "Web", "Канал для новых клиентов: просмотр продуктов, подача заявок на депозиты и кредиты")
+  System(InternetBank, "Интернет-банк", "ASP.NET MVC монолит", "Канал для действующих клиентов: продукты, персональные ставки, заявки")
+  System(CallCenterSystem, "Система кол-центра", "React + Java", "Рабочее место операторов, обработка заявок с сайта")
+  System(ProductAppService, "Сервис заявок на продукты", "REST-сервис", "Управляет заявками на депозиты и кредиты из всех каналов")
+  System(RatesService, "Сервис ставок", "REST-сервис", "Централизованное хранение и расчёт ставок по депозитам и кредитам")
+  System(ABS, "АБС", "Delphi + Oracle", "Учёт счетов, договоров, операций по депозитам и кредитам")
+  System(CreditConveyor, "Кредитный конвейер", "Camunda + Oracle", "Оркестрация процесса рассмотрения кредитных заявок")
+  System(ScoringSystem, "Система кредитного скоринга", "Python + Flask + PostgreSQL", "Рассчитывает скоринговый балл клиента")
+  System(SMSGateway, "SMS-шлюз банка", "Интеграционный сервис", "Отправка СМС клиентам")
+}
+
+' === Внешние системы ===
+System_Ext(PartnerCallCenter, "Партнёрский кол-центр", "Внешняя система", "Может подключаться для обработки звонков")
+System_Ext(BKI, "Бюро кредитных историй", "Внешний REST API", "Предоставляет кредитные истории клиентов")
+System_Ext(Telco, "Телеком-оператор", "Внешний провайдер", "Доставка СМС до клиентов")
+
+' === Взаимодействия клиентов с каналами ===
+Rel(NewCustomer, Website, "Просмотр продуктов, подача заявок на депозит и кредит (HTTP/TLS)")
+Rel(ExistingCustomer, InternetBank, "Работа в ИБ: просмотр продуктов, подача заявок (HTTP/TLS)")
+Rel(NewCustomer, CallCenterSystem, "Звонки по номеру банка (телефон)")
+Rel(ExistingCustomer, CallCenterSystem, "Звонки по вопросам продуктов (телефон)")
+Rel(NewCustomer, SMSGateway, "Получает СМС", "SMS через телеком-оператора")
+Rel(ExistingCustomer, SMSGateway, "Получает СМС", "SMS через телеком-оператора")
+
+' === Взаимодействия внутри банка ===
+Rel(Website, ProductAppService, "Создаёт заявки на депозиты/кредиты, запрашивает статусы", "REST/JSON over TLS")
+Rel(InternetBank, ProductAppService, "Создаёт заявки на депозиты/кредиты, запрашивает статусы", "REST/JSON over TLS")
+Rel(InternetBank, RatesService, "Запрашивает список продуктов и персональные ставки", "REST/JSON")
+
+Rel(CallCenterSystem, ProductAppService, "Читает и обновляет статусы заявок с сайта", "REST/JSON")
+Rel(CallCenterOperator, CallCenterSystem, "Работает с заявками, звонки клиентам")
+
+Rel(ProductAppService, ABS, "Создание/обновление депозитных договоров (через адаптер)", "Интеграция по API/шине")
+Rel(BackOfficeDeposits, ABS, "Ручное/полуавтоматическое оформление депозитов")
+Rel(BackOfficeDeposits, RatesService, "Управление ставками по депозитам", "Web UI / REST")
+
+Rel(ProductAppService, CreditConveyor, "Передача кредитных заявок (в обход обмена по БД)", "REST/JSON")
+Rel(BackOfficeCredits, CreditConveyor, "Обработка кредитных заявок", "UI конвейера")
+
+Rel(CreditConveyor, ScoringSystem, "Запрос скорингового решения по заявке", "REST/JSON")
+Rel(ScoringSystem, BKI, "Запрос кредитной истории клиента", "REST/JSON")
+
+Rel(ProductAppService, SMSGateway, "Запрос на отправку СМС о статусах заявок", "REST/JSON")
+Rel(InternetBank, SMSGateway, "СМС-подтверждение операций (OTP)", "REST/JSON")
+Rel(SMSGateway, Telco, "Передача СМС сообщений", "SMPP/HTTPS")
+
+Rel(PartnerCallCenter, CallCenterSystem, "При необходимости получает скрипты/данные по заявкам", "Интеграция по договорённости")
+
+@enduml

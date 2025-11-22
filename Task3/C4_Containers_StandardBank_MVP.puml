@@ -1,0 +1,94 @@
+@startuml C4_Containers_StandardBank_MVP
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+title Диаграмма контейнеров C4: MVP депозитов и кредитов (каналы, ИБ, АБС, сервисы)
+
+Person(ExistingCustomer, "Клиент интернет-банка", "Действующий клиент банка")
+Person(NewCustomer, "Новый клиент", "Потенциальный клиент")
+
+' === Граница банка ===
+System_Boundary(Bank, "Банк «Стандарт»") {
+
+  ' --- Сайт ---
+  Container(Website, "Сайт банка", "PHP + React", "Отображение информации и форм заявок для новых клиентов")
+
+  ' --- Интернет-банк ---
+  Container_Boundary(IB, "Интернет-банк") {
+    Container(IB_Web, "IB Web Frontend", "ASP.NET MVC", "UI, аутентификация, обработка запросов клиентов ИБ")
+    Container(IB_Backend, "IB Backend (монолит)", ".NET Framework", "Бизнес-логика интернет-банка, интеграция с внешними сервисами")
+    ContainerDb(IB_DB, "IB Database", "MS SQL", "Данные ИБ: профили клиентов, операции, ссылки на заявки")
+  }
+
+  ' --- Новый сервис заявок ---
+  Container_Boundary(AppLayer, "Прикладной слой заявок и ставок") {
+    Container(ProductAppService, "Product Applications Service", "Java/.NET сервис", "Управляет заявками на депозиты и кредиты из всех каналов")
+    Container(ProductAppDB, "Product Applications DB", "MS SQL/Oracle", "Хранение заявок, статусов, метаданных")
+
+    Container(RatesService, "Rates Service", "Java/.NET сервис", "Централизованное хранение и расчёт ставок по депозитам и кредитам")
+    Container(RatesDB, "Rates DB", "MS SQL/Oracle", "Таблицы ставок, истории изменений, правил расчёта")
+
+    Container(SMSGateway, "SMS Gateway Adapter", "Интеграционный сервис", "Очереди СМС, ретраи, маршрутизация к телеком-оператору/SMS-шлюзу")
+  }
+
+  ' --- Кол-центр---
+  Container(CallCenterSystem, "Система кол-центра", "React + Spring Boot + PostgreSQL", "Рабочее место операторов для обработки заявок с сайта")
+
+  ' --- АБС ---
+  Container_Boundary(ABS_B, "АБС") {
+    Container(ABS_Client, "ABS Application", "Delphi + PL/SQL", "Толстый клиент / серверная часть: операции по счетам и продуктам")
+    ContainerDb(ABS_DB, "ABS Database", "Oracle", "Учёт счетов, договоров, платежей, депозитов и кредитов")
+    Container(ABS_Adapter, "ABS Integration Adapter", "Java/.NET сервис", "Интеграционный адаптер для команд из Сервиса заявок (открытие депозитов и т.п.)")
+  }
+
+  ' --- Кредитный конвейер и скоринг ---
+  Container_Boundary(CreditDomain, "Кредитный домен") {
+    Container(CreditConveyor, "Credit Conveyor", "Camunda + Java", "Оркестрация процессов рассмотрения кредитных заявок")
+    ContainerDb(CreditConvDB, "Credit Conveyor DB", "Oracle", "Хранение кредитных заявок и состояний процессов")
+
+    Container(ScoringSystem, "Scoring System", "Python + Flask", "Рассчитывает скоринговый балл по данным АБС и БКИ")
+    ContainerDb(ScoringDB, "Scoring DB", "PostgreSQL", "Модели скоринга, логи, результаты")
+  }
+
+}
+
+' === Внешние системы ===
+System_Ext(BKI, "Бюро кредитных историй", "REST API", "Предоставляет кредитные истории клиентов")
+System_Ext(Telco, "Телеком-оператор / внеш. SMS-шлюз", "SMPP/HTTP", "Физическая доставка СМС клиентам")
+
+' === Взаимодействия клиентов с каналами ===
+Rel(NewCustomer, Website, "Просмотр продуктов, подача заявок (HTTPS/TLS)")
+Rel(ExistingCustomer, IB_Web, "Работа в интернет-банке (HTTPS/TLS)")
+
+Rel(IB_Web, IB_Backend, "HTTP вызовы, MVC контроллеры")
+Rel(IB_Backend, IB_DB, "Чтение/запись данных")
+
+' === Каналы → Сервис заявок и ставок ===
+Rel(Website, ProductAppService, "Создание заявок на депозиты/кредиты, запрос статусов", "REST/JSON over TLS")
+Rel(IB_Backend, ProductAppService, "Создание заявок, запрос статусов", "REST/JSON over TLS")
+Rel(IB_Backend, RatesService, "Запрос списка продуктов и персонализированных ставок", "REST/JSON")
+
+Rel(ProductAppService, ProductAppDB, "Чтение/запись заявок")
+Rel(RatesService, RatesDB, "Чтение/запись ставок")
+
+' Кол-центр работает с заявками с сайта
+Rel(CallCenterSystem, ProductAppService, "Получение заявок с сайта, обновление статусов", "REST/JSON")
+
+' === Интеграции с АБС ===
+Rel(ProductAppService, ABS_Adapter, "Команды на открытие/обновление депозитов", "REST/JSON или очередь сообщений")
+Rel(ABS_Adapter, ABS_Client, "Вызовы внутреннего API/скриптов АБС")
+Rel(ABS_Client, ABS_DB, "Чтение/запись договоров, счетов, операций")
+
+' === Интеграции кредитного домена ===
+Rel(ProductAppService, CreditConveyor, "Передача кредитных заявок (MVP: ускоренные сценарии)", "REST/JSON")
+Rel(CreditConveyor, CreditConvDB, "Чтение/запись заявок и состояний")
+
+Rel(CreditConveyor, ScoringSystem, "Запрос скоринга по заявке", "REST/JSON")
+Rel(ScoringSystem, ScoringDB, "Хранение результатов и моделей")
+Rel(ScoringSystem, BKI, "Запрос кредитной истории клиента", "REST/JSON")
+
+' === СМС ===
+Rel(IB_Backend, SMSGateway, "Запрос СМС-подтверждения операций (OTP)", "REST/JSON")
+Rel(ProductAppService, SMSGateway, "Запрос СМС об изменении статуса заявок", "REST/JSON")
+Rel(SMSGateway, Telco, "Отправка СМС", "SMPP/HTTP")
+
+@enduml
