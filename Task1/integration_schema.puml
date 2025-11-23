@@ -1,0 +1,62 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+LAYOUT_WITH_LEGEND()
+title Integration Schema - Current State (As-Is)
+
+Person(client, "Клиент", "Клиент банка")
+Person(manager_front, "Менеджер отделения", "Сотрудник отделения банка")
+Person(manager_back_dep, "Бэк-офис депозитов", "Рассчитывает ставки")
+Person(manager_back_cred, "Бэк-офис кредитов", "Утверждает кредиты")
+
+System_Boundary(bank_boundary, "Система банка") {
+    
+    Container(website, "Сайт", "PHP, React", "Маркетинг, заявки на кредит")
+    Container(ib, "Интернет-банк", "ASP.NET, MS SQL", "Платежи, просмотр счетов")
+    
+    Container(abs, "АБС (Ядро банка)", "Delphi, Oracle", "Главная книга, управление счетами")
+    
+    Container(cc_system, "Система кол-центра", "Vendor Platform (Java/PostgreSQL)", "Поддержка клиентов, логирование инцидентов")
+    
+    Container(credit_pipeline, "Кредитный конвейер", "Camunda BPM, Oracle", "Процесс обработки кредитных заявок")
+    Container(scoring, "Система скоринга", "Python, PostgreSQL", "Рассчитывает кредитный скоринг")
+    
+    Container(mail, "Email System", "Exchange", "Внутренняя коммуникация")
+}
+
+System_Ext(partner_cc, "Партнёрский кол-центр", "Внешнее outsourcing")
+System_Ext(bki, "БКИ (Бюро кредитных историй)", "Внешняя кредитная история")
+System_Ext(sms_gate, "SMS-шлюз", "Телеком оператор")
+
+Rel(client, website, "Посещает / подает заявку на кредит")
+Rel(client, ib, "Использует интернет-банк")
+Rel(client, manager_front, "Посещает отделение")
+
+' Internet Bank Integration
+Rel(ib, abs, "Прямой доступ к БД", "SQL")
+
+' Call Center Integration
+Rel(client, cc_system, "Звонит в кол-центр")
+Rel(client, partner_cc, "Звонит в партнёрский кол-центр")
+Rel(cc_system, abs, "Ручной ввод данных", "Человек")
+
+' Deposit Process (Manual)
+Rel(manager_front, mail, "Запрос ставки (Excel)", "Email")
+Rel(mail, manager_back_dep, "Доставляет запрос")
+Rel(manager_back_dep, mail, "Отправляет ставку", "Email")
+Rel(manager_front, abs, "Открывает депозит", "Manual GUI")
+
+' Credit Process
+Rel(manager_front, abs, "Создает заявку", "Manual GUI")
+Rel(abs, credit_pipeline, "Синхронизация заявок", "DB Link / Daily Batch")
+Rel(credit_pipeline, scoring, "Запрос скоринга", "REST API")
+Rel(scoring, bki, "Проверяет историю", "REST API")
+Rel(scoring, abs, "Читает данные клиента", "Daily ETL/DB Link")
+Rel(credit_pipeline, manager_back_cred, "Проверяет задачу")
+Rel(credit_pipeline, abs, "Синхронизация окончательного статуса", "DB Link / Daily Batch")
+
+' Notifications
+Rel(abs, sms_gate, "Отправляет SMS")
+
+@enduml
+

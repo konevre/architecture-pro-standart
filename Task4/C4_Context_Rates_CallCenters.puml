@@ -1,0 +1,27 @@
+@startuml C4_Context_Rates_CallCenters
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+title C4 Context: доступ кол-центров к ставкам депозитов
+
+Person(BackOfficeDeposits, "Бэк-офис депозитов", "Управляет ставками депозитов")
+Person(CCOperator, "Оператор кол-центра банка", "Консультирует клиентов по телефону")
+Person(CCPartnerOperator, "Оператор партнёрского кол-центра", "Консультирует клиентов по телефону (внешняя организация)")
+
+System_Boundary(Bank, "Банк «Стандарт»") {
+  System(RatesService, "Сервис ставок", "REST-сервис", "Хранит и рассчитывает ставки по депозитам и другим продуктам")
+  System(CallCenterSystem, "Система кол-центра банка", "CRM/Call Center", "Рабочее место операторов кол-центра")
+}
+
+System_Ext(PartnerCCSystem, "Система партнёрского кол-центра", "Внешняя система", "Используется операторами партнёрского кол-центра")
+System_Ext(FileChannel, "SFTP Сервер", "SFTP", "Используется для безопасной передачи JSON-файлов со ставками")
+
+Rel(BackOfficeDeposits, RatesService, "Настраивает и утверждает ставки", "Web UI / HTTPS")
+Rel(CCOperator, CallCenterSystem, "Работа со звонками и сценариями консультаций")
+Rel(CallCenterSystem, RatesService, "Получает актуальные ставки по API", "REST/JSON over TLS")
+
+Rel(RatesService, FileChannel, "Формирует и передаёт JSON-файл со ставками", "Запланированная выгрузка")
+Rel(FileChannel, PartnerCCSystem, "Доставка JSON-файла партнёру")
+
+Rel(CCPartnerOperator, PartnerCCSystem, "Использует загруженные ставки при консультациях клиентов")
+
+@enduml

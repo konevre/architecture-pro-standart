@@ -1,0 +1,36 @@
+@startuml C4_Component_Rates_CallCenters
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+title C4 Component: Сервис ставок и интеграция с кол-центрами
+
+Container_Boundary(RatesBoundary, "Сервис ставок") {
+  Component(RatesAdminUI, "RatesAdminUI", "Web UI", "Интерфейс для бэк-офиса депозитов для управления ставками")
+  Component(RatesAPI, "RatesAPI", "REST API", "CRUD по ставкам, выдача актуальных ставок для каналов и кол-центра")
+  Component(RatesExportJob, "RatesExportJob", "Batch/Scheduler", "Формирует JSON-файлы со ставками и инициирует их передачу партнёру")
+  Component(RatesRepository, "RatesRepository", "DB access", "Чтение/запись ставок в базе данных")
+}
+
+Container_Boundary(CCBoundary, "Система кол-центра банка") {
+  Component(CCUI, "CallCenterUI", "Web UI", "Рабочее место оператора кол-центра")
+  Component(RatesClient, "RatesClient", "Service/Module", "Вызывает RatesAPI, кэширует и предоставляет ставки для UI и скриптов")
+  Component(ScriptsEngine, "CallScriptsEngine", "Engine", "Сценарии звонков, подставляют значения ставок в подсказки")
+}
+
+Container(PartnerCCSystem, "Система партнёрского кол-центра", "Внешняя система", "Импортирует JSON и хранит ставки локально")
+ContainerDb(RatesDB, "Rates DB", "MS SQL/Oracle", "Хранение ставок и истории изменений")
+Container(FileChannel, "SFTP Сервер", "SFTP", "Изолированный сервер для обмена файлами с партнером")
+
+Rel(RatesAdminUI, RatesAPI, "Управление ставками", "HTTPS")
+Rel(RatesAPI, RatesRepository, "CRUD по ставкам")
+Rel(RatesRepository, RatesDB, "Чтение/запись")
+
+Rel(CCUI, RatesClient, "Запрос ставок для отображения")
+Rel(RatesClient, RatesAPI, "Получение актуальных ставок", "REST/JSON")
+Rel(ScriptsEngine, RatesClient, "Читает ставки для вставки в сценарии")
+
+Rel(RatesExportJob, RatesRepository, "Читает утверждённые ставки")
+Rel(RatesExportJob, FileChannel, "Передаёт JSON-файл партнёру")
+
+Rel(PartnerCCSystem, FileChannel, "Получает JSON-файл, импортирует ставки")
+
+@enduml

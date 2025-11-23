@@ -1,0 +1,33 @@
+@startuml C4_Credit_Context
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+Person(NewCustomer, "Новый клиент")
+Person(ExistingCustomer, "Клиент интернет-банка")
+
+System(Website, "Сайт")
+System(InternetBank, "Интернет-банк")
+System(CreditApplicationService, "Credit Application Service", "Оркестрация кредитных заявок")
+System(PreApprovedService, "Pre-approved Offers Service")
+System(CreditConveyor, "Кредитный конвейер (Camunda)")
+System(ScoringSystem, "Скоринг")
+System(SMSGateway, "SMS Gateway")
+
+System_Ext(BKI, "БКИ", "Внешний API")
+
+Rel(NewCustomer, Website, "Подаёт заявку")
+Rel(ExistingCustomer, InternetBank, "Подаёт заявку, видит предодобрение")
+
+Rel(Website, CreditApplicationService, "Создание заявки")
+Rel(InternetBank, CreditApplicationService, "Создание заявки")
+
+Rel(CreditApplicationService, ScoringSystem, "Запрос скоринга")
+Rel(ScoringSystem, BKI, "Запрос кредитной истории")
+
+Rel(CreditApplicationService, CreditConveyor, "Отправка заявки")
+Rel(CreditConveyor, CreditApplicationService, "Возврат статуса")
+
+Rel(InternetBank, PreApprovedService, "Получение предодобренных предложений")
+
+Rel(CreditApplicationService, SMSGateway, "Отправка уведомлений")
+
+@enduml
