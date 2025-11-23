@@ -18,7 +18,7 @@ Container_Boundary(CCBoundary, "Система кол-центра банка") 
 
 Container(PartnerCCSystem, "Система партнёрского кол-центра", "Внешняя система", "Импортирует JSON и хранит ставки локально")
 ContainerDb(RatesDB, "Rates DB", "MS SQL/Oracle", "Хранение ставок и истории изменений")
-Container(FileChannel, "Канал передачи файлов", "Почта/B2B-портал", "Передача JSON-файлов партнёру")
+Container(FileChannel, "SFTP Сервер", "SFTP", "Изолированный сервер для обмена файлами с партнером")
 
 Rel(RatesAdminUI, RatesAPI, "Управление ставками", "HTTPS")
 Rel(RatesAPI, RatesRepository, "CRUD по ставкам")

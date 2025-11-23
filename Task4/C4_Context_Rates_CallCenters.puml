@@ -13,7 +13,7 @@ System_Boundary(Bank, "Банк «Стандарт»") {
 }
 
 System_Ext(PartnerCCSystem, "Система партнёрского кол-центра", "Внешняя система", "Используется операторами партнёрского кол-центра")
-System_Ext(FileChannel, "Канал передачи файлов", "Почта/B2B-портал", "Используется для передачи JSON-файлов со ставками")
+System_Ext(FileChannel, "SFTP Сервер", "SFTP", "Используется для безопасной передачи JSON-файлов со ставками")
 
 Rel(BackOfficeDeposits, RatesService, "Настраивает и утверждает ставки", "Web UI / HTTPS")
 Rel(CCOperator, CallCenterSystem, "Работа со звонками и сценариями консультаций")
